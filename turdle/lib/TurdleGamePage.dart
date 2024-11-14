@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:turdle/TurdleMainMenu.dart';
 
 class TurdleGamePage extends StatefulWidget {
   const TurdleGamePage({
@@ -105,9 +103,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
 
   Future<void> startNewGame() async{
     await readJson("assets/dict/${language.toLowerCase()}_words.json");
-    print("$_dict");
     targetWord = getWord(nbLetters).toUpperCase();
-    print(targetWord);
     guesses = List.filled(nbTry, "");
   }
 
@@ -260,21 +256,9 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
   }
 
   Future<void> readJson(String filePath) async {
-    try {
       final String response = await rootBundle.loadString(filePath);
       final data = json.decode(response);
-      //setState(() {
-        _dict = List<String>.from(data);
-      //});
-      // Vérifier que les mots sont bien chargés
-      if (_dict.isEmpty) {
-        print("Aucun mot trouvé dans le fichier JSON.");
-      } else {
-        //print("Mots chargés : $_dict");
-      }
-    } catch (e) {
-      print("Erreur lors du chargement du fichier JSON : $e");
-    }
+      _dict = List<String>.from(data);
   }
 
   String getWord(int len) {
