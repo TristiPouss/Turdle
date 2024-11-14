@@ -8,6 +8,8 @@ class TurdleMainMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      //Hide debug banner
+      debugShowCheckedModeBanner: false,
       title: 'Turdle Menu',
       home: MainMenuPage(),
     );
@@ -21,7 +23,7 @@ class MainMenuPage extends StatefulWidget {
 
 class _MainMenuPageState extends State<MainMenuPage> {
   String selectedMode = ""; // Stocke le mode sélectionné
-  String language = "";
+  String language = "French";
   int nbLetters = 5;
   int nbTry = 6;
 
@@ -78,7 +80,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           ListTile(
             title: Text("Langage :"),
             trailing: DropdownButton<String>(
-              value: "French",
+              value: language,
               items: const [
                 DropdownMenuItem(
                   child: Text("Français"),
@@ -175,10 +177,16 @@ class _MainMenuPageState extends State<MainMenuPage> {
                   case "Classique" :
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => TurdleGamePage(nbLetters: nbLetters, nbTry: nbTry)),
+                      MaterialPageRoute(builder: (context) => TurdleGamePage(
+                          gameMode: selectedMode,
+                          language: language,
+                          nbLetters: nbLetters,
+                          nbTry: nbTry
+                      )),
                     ).then((value) => {
                       setState(() {
                         selectedMode = "";
+                        language = "French";
                         nbLetters = 5;
                         nbTry = 6;
                       })

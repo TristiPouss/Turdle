@@ -3,63 +3,83 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:turdle/TurdleMainMenu.dart';
 
 class TurdleGamePage extends StatefulWidget {
-  const TurdleGamePage({super.key, required this.nbLetters, required this.nbTry});
+  const TurdleGamePage({
+    required this.gameMode,
+    required this.language,
+    required this.nbLetters,
+    required this.nbTry
+  });
 
+  final String gameMode;
+  final String language;
   final int nbLetters;
   final int nbTry;
 
   @override
-  _TurdleGamePageState createState() => _TurdleGamePageState(nbLetters: nbLetters, nbTry: nbTry);
+  _TurdleGamePageState createState() => _TurdleGamePageState(
+      gameMode: gameMode,
+      language: language,
+      nbLetters: nbLetters,
+      nbTry: nbTry);
 }
 
 class _TurdleGamePageState extends State<TurdleGamePage> {
+  final String gameMode;
+  final String language;
   final int nbLetters;
   final int nbTry;
   String targetWord = "";
-  late List<String> guesses;
+  List<String> guesses = [];
+  List<String> _dict = [];
 
-  List<List<Color>> guessesChecked = [];
   int currentGuess = 0;
   int score = 0;
   bool? win;
 
-  List<String> badLetters = [];
-  List<String> greenLetters = [];
-  List<String> yellowLetters = [];
+  late Future<void> _gameSetupFuture;
 
-  final ScrollController _scrollController = ScrollController();
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  _TurdleGamePageState({required this.nbLetters, required this.nbTry}){
-    getWord(nbLetters, "English");
-    guesses = List.filled(nbTry, "");
-  }
+  _TurdleGamePageState({
+    required this.gameMode,
+    required this.language,
+    required this.nbLetters,
+    required this.nbTry
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Turdle'),
+        title: Text('Turdle - Mode $gameMode'),
       ),
       body: Column(
         children: [
           // Grille des mots devinés
           Expanded(
-              child: TurdleGrid(
-                guesses: guesses,
-                guessesChecked: guessesChecked,
-                targetWordLength: targetWord.length,
-                currentGuess: currentGuess,
-                scrollController: _scrollController,
-                win: win,
-              )
+              child: Scaffold(
+                body: FutureBuilder<void>(
+                  future: _gameSetupFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text("Erreur : ${snapshot.error}"));
+                    } else {
+                      return TurdleGrid(
+                        guesses: guesses,
+                        guessesChecked: guessesChecked,
+                        targetWordLength: targetWord.length,
+                        currentGuess: currentGuess,
+                        scrollController: _scrollController,
+                        win: win,
+                      );
+                    }
+                    }
+                ),
+              ),
           ),
           // Ajoute un espace de 16 pixels entre la grille et le clavier
           SizedBox(height: 16.0),
@@ -77,13 +97,18 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     );
   }
 
-  // Fonction pour défiler jusqu'à l'essai en cours
-  void scrollToCurrentGuess() {
-    double offset = 0; // Taille approximative de chaque ligne
-    _scrollController.animateTo(
-        offset,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeIn);
+  @override
+  void initState() {
+    super.initState();
+    _gameSetupFuture = startNewGame();
+  }
+
+  Future<void> startNewGame() async{
+    await readJson("assets/dict/${language.toLowerCase()}_words.json");
+    print("$_dict");
+    targetWord = getWord(nbLetters).toUpperCase();
+    print(targetWord);
+    guesses = List.filled(nbTry, "");
   }
 
   void onLetterTap(String letter) {
@@ -93,19 +118,6 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
       });
       scrollToCurrentGuess(); // Défiler vers l'essai actuel
     }
-  }
-
-  Color getLetterColor(String letter){
-    if (greenLetters.contains(letter)){
-      return Colors.green;
-    }
-    if (yellowLetters.contains(letter)){
-      return Colors.yellow;
-    }
-    if (badLetters.contains(letter)){
-      return Colors.grey.shade300;
-    }
-    return Colors.white;
   }
 
   void onBackspaceTap() {
@@ -119,6 +131,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
 
   void onEnterTap() {
     if (guesses[currentGuess].length == targetWord.length) {
+      if(!validGuess()) return;
       checkGuess();
       setState(() {
         currentGuess++;
@@ -135,6 +148,41 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
       }
     }
   }
+
+  List<String> badLetters = [];
+  List<String> greenLetters = [];
+  List<String> yellowLetters = [];
+
+  Color getLetterColor(String letter){
+    if (greenLetters.contains(letter)){
+      return Colors.green;
+    }
+    if (yellowLetters.contains(letter)){
+      return Colors.yellow;
+    }
+    if (badLetters.contains(letter)){
+      return Colors.grey.shade300;
+    }
+    return Colors.white;
+  }
+
+  final ScrollController _scrollController = ScrollController();
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Fonction pour défiler jusqu'à l'essai en cours
+  void scrollToCurrentGuess() {
+    double offset = 0; // Taille approximative de chaque ligne
+    _scrollController.animateTo(
+        offset,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeIn);
+  }
+
+  List<List<Color>> guessesChecked = [];
 
   void checkGuess() {
     // resultat a ajouter dans la liste guessesChecked
@@ -198,7 +246,12 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     Navigator.pop(context);
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TurdleGamePage(nbLetters: nbLetters, nbTry: nbTry)),
+      MaterialPageRoute(builder: (context) => TurdleGamePage(
+          gameMode: gameMode,
+          language: language,
+          nbLetters: nbLetters,
+          nbTry: nbTry
+      )),
     );
   }
 
@@ -206,13 +259,45 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     Navigator.pop(context);
   }
 
-  void getWord(int length, String language) {
-    String filePath = "C:\\Users\\trist\\StudioProjects\\Turdle\\turdle\\assets\\dict\\french_words.json";
-    var input = File(filePath).readAsString();
-    for(int i = 0; i<nbLetters; i++){
-      targetWord += "A";
+  Future<void> readJson(String filePath) async {
+    try {
+      final String response = await rootBundle.loadString(filePath);
+      final data = json.decode(response);
+      //setState(() {
+        _dict = List<String>.from(data);
+      //});
+      // Vérifier que les mots sont bien chargés
+      if (_dict.isEmpty) {
+        print("Aucun mot trouvé dans le fichier JSON.");
+      } else {
+        //print("Mots chargés : $_dict");
+      }
+    } catch (e) {
+      print("Erreur lors du chargement du fichier JSON : $e");
     }
   }
+
+  String getWord(int len) {
+    if (_dict.isEmpty) {
+      throw Exception("Le dictionnaire de mots est vide. Assurez-vous que readJson() a été appelé.");
+    }
+    // Filtrer les mots de la longueur spécifiée
+    List<String> filteredWords = _dict.where((word) => word.length == len).toList();
+
+    // Vérifier que la liste filtrée n'est pas vide
+    if (filteredWords.isEmpty) {
+      throw Exception("Aucun mot trouvé avec la longueur spécifiée : $len");
+    }
+
+    // Sélectionner un mot aléatoire parmi les mots filtrés
+    final random = Random();
+    return filteredWords[random.nextInt(filteredWords.length)];
+  }
+
+  bool validGuess() {
+    return _dict.contains(guesses[currentGuess].toLowerCase());
+  }
+
 }
 
 class TurdleKeyboard extends StatelessWidget {
