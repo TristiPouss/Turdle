@@ -1,28 +1,80 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:turdle/TurdleMainMenu.dart';
 
 class TurdleGamePage extends StatefulWidget {
+  const TurdleGamePage({super.key, required this.nbLetters, required this.nbTry});
+
+  final int nbLetters;
+  final int nbTry;
+
   @override
-  _TurdleGamePageState createState() => _TurdleGamePageState();
+  _TurdleGamePageState createState() => _TurdleGamePageState(nbLetters: nbLetters, nbTry: nbTry);
 }
 
 class _TurdleGamePageState extends State<TurdleGamePage> {
-  // Exemple de mot cible
-  final String targetWord = "DAARTS";
-  // Liste pour stocker les mots devinés
-  List<String> guesses = ["", "", "", "", "", ""];
+  final int nbLetters;
+  final int nbTry;
+  String targetWord = "";
+  late List<String> guesses;
+
   List<List<Color>> guessesChecked = [];
-  // Lettres tapées par l'utilisateur
   int currentGuess = 0;
+  int score = 0;
   bool? win;
+
   List<String> badLetters = [];
   List<String> greenLetters = [];
   List<String> yellowLetters = [];
-  final ScrollController _scrollController = ScrollController();
 
+  final ScrollController _scrollController = ScrollController();
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  _TurdleGamePageState({required this.nbLetters, required this.nbTry}){
+    getWord(nbLetters, "English");
+    guesses = List.filled(nbTry, "");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Turdle'),
+      ),
+      body: Column(
+        children: [
+          // Grille des mots devinés
+          Expanded(
+              child: TurdleGrid(
+                guesses: guesses,
+                guessesChecked: guessesChecked,
+                targetWordLength: targetWord.length,
+                currentGuess: currentGuess,
+                scrollController: _scrollController,
+                win: win,
+              )
+          ),
+          // Ajoute un espace de 16 pixels entre la grille et le clavier
+          SizedBox(height: 16.0),
+          // Clavier virtuel
+          if(win == null)
+            TurdleKeyboard(
+                onLetterTap: onLetterTap,
+                onBackspaceTap: onBackspaceTap,
+                onEnterTap: onEnterTap,
+                getLetterColor: getLetterColor
+            ),
+          if(win != null) TurdleWin(win: win!, score: score, onMenu: onMenu, onReplay: onReplay,),
+        ],
+      ),
+    );
   }
 
   // Fonction pour défiler jusqu'à l'essai en cours
@@ -67,11 +119,20 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
 
   void onEnterTap() {
     if (guesses[currentGuess].length == targetWord.length) {
+      checkGuess();
       setState(() {
-        checkGuess();
         currentGuess++;
       });
       scrollToCurrentGuess(); // Défiler vers l'essai actuel
+      if(win != null){
+        List<String> tempList = [];
+        for(String s in guesses){
+          if (s.isNotEmpty) {
+            tempList.add(s);
+          }
+        }
+        guesses = tempList;
+      }
     }
   }
 
@@ -118,52 +179,39 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
 
   void checkEnd() {
     // Check fin de partie
-    for(int i = 0; i<guessesChecked[currentGuess].length; i++){
+    for(int i = 0; i<guessesChecked[currentGuess].length;i++){
       if(guessesChecked[currentGuess][i] != Colors.green){
         // Mot non trouvé
-        break;
+        // Check si plus d'essai
+        if(currentGuess == guesses.length-1){
+          // Partie perdue
+          win = false;
+        }
+        return;
       }
-      // Partie gagnée
-      win = true;
-      return;
     }
-    // Check si plus d'essai
-    if(currentGuess == guesses.length-1){
-      // Partie perdue
-      win = false;
-    }
+    // Partie gagnée
+    win = true;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Turdle'),
-      ),
-      body: Column(
-        children: [
-          // Grille des mots devinés
-          Expanded(
-              child: TurdleGrid(
-                guesses: guesses,
-                guessesChecked: guessesChecked,
-                targetWordLength: targetWord.length,
-                currentGuess: currentGuess,
-                scrollController: _scrollController,
-              )
-          ),
-          // Ajoute un espace de 16 pixels entre la grille et le clavier
-          SizedBox(height: 16.0),
-          // Clavier virtuel
-          TurdleKeyboard(
-              onLetterTap: onLetterTap,
-              onBackspaceTap: onBackspaceTap,
-              onEnterTap: onEnterTap,
-              getLetterColor: getLetterColor
-          ),
-        ],
-      ),
+  void onReplay(){
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => TurdleGamePage(nbLetters: nbLetters, nbTry: nbTry)),
     );
+  }
+
+  void onMenu(){
+    Navigator.pop(context);
+  }
+
+  void getWord(int length, String language) {
+    String filePath = "C:\\Users\\trist\\StudioProjects\\Turdle\\turdle\\assets\\dict\\french_words.json";
+    var input = File(filePath).readAsString();
+    for(int i = 0; i<nbLetters; i++){
+      targetWord += "A";
+    }
   }
 }
 
@@ -231,6 +279,7 @@ class TurdleGrid extends StatelessWidget {
   final int targetWordLength;
   final int currentGuess;
   final ScrollController scrollController;
+  final bool? win;
 
   TurdleGrid({
     required this.guesses,
@@ -238,44 +287,54 @@ class TurdleGrid extends StatelessWidget {
     required this.targetWordLength,
     required this.currentGuess,
     required this.scrollController,
+    required this.win,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 300, // Hauteur maximale pour permettre le défilement si nécessaire
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        height: 500, // Hauteur maximale pour permettre le défilement si nécessaire,
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(
+          controller: scrollController,
+          child: Column(
+            children: guesses.asMap().entries.map((entry) {
+              int wordIndex = entry.key;
+              String guess = entry.value;
 
-      child: SingleChildScrollView(
-        controller: scrollController,
-        child: Column(
-          children: guesses.asMap().entries.map((entry) {
-            int wordIndex = entry.key;
-            String guess = entry.value;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 20),
+                  ...List.generate(targetWordLength, (letterIndex) {
+                    String letter = guess.length > letterIndex ? guess[letterIndex] : "";
 
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(targetWordLength, (letterIndex) {
-                String letter = guess.length > letterIndex ? guess[letterIndex] : "";
-
-                return Container(
-                  width: 40.0,
-                  height: 40.0,
-                  margin: EdgeInsets.all(4.0),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    color: getColor(currentGuess, wordIndex, letterIndex),
-                  ),
-                  child: Text(
-                    letter,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                );
-              }),
-            );
-          }).toList(),
+                    return Expanded(
+                      child: Container(
+                        width: 40.0,
+                        height: 40.0,
+                        margin: const EdgeInsets.all(4.0),
+                        alignment: Alignment.topCenter,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          color: getColor(currentGuess, wordIndex, letterIndex),
+                        ),
+                        child: Text(
+                          letter,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(width: 20),
+                ],
+              );
+            }).toList(),
+          ),
         ),
-      ),
+      )
     );
   }
 
@@ -287,5 +346,105 @@ class TurdleGrid extends StatelessWidget {
     } else {
       return Colors.white;
     }
+  }
+}
+
+class TurdleWin extends StatelessWidget{
+  final bool win;
+  final int score;
+  final VoidCallback onReplay;
+  final VoidCallback onMenu;
+
+  TurdleWin({
+    required this.win,
+    required this.score,
+    required this.onReplay,
+    required this.onMenu,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: win ? Colors.greenAccent[100] : Colors.redAccent[100],
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                win ? Icons.emoji_events : Icons.sentiment_dissatisfied,
+                size: 80,
+                color: win ? Colors.green : Colors.red,
+              ),
+              SizedBox(height: 10),
+              Text(
+                win ? "Félicitations !" : "Dommage !",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: win ? Colors.green[800] : Colors.red[800],
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                win ? "Vous avez gagné!" : "Essayez encore !",
+                style: TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 15),
+              Text(
+                "Score : $score",
+                style: TextStyle(
+                  fontSize: 22,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: onReplay,
+                    icon: Icon(Icons.refresh),
+                    label: Text("Rejouer"),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.blueAccent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: onMenu,
+                    icon: Icon(Icons.home),
+                    label: Text("Menu"),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.orangeAccent,
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
