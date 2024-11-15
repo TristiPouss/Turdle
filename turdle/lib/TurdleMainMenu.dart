@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'TurdleGamePage.dart';
 
@@ -26,6 +27,10 @@ class _MainMenuPageState extends State<MainMenuPage> {
   String language = "French";
   int nbLetters = 5;
   int nbTry = 6;
+  bool hasTimer = true;
+  String p1 = "";
+  String p2 = "";
+  bool darkTheme = SchedulerBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
 
   // Fonction pour afficher les options d'un mode
   Widget _buildOptions(String mode) {
@@ -33,17 +38,17 @@ class _MainMenuPageState extends State<MainMenuPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Options Classique"),
-          SizedBox(height: 8.0),
+          const Text("Options Classique"),
+          const SizedBox(height: 8.0),
           ListTile(
-            title: Text("Nombre de lettres :"),
+            title: const Text("Nombre de lettres :"),
             trailing: DropdownButton<int>(
               value: nbLetters,
               items: List.generate(
                 9,
                 (index) => DropdownMenuItem(
-                  child: Text("${index + 4}"),
                   value: index + 4,
+                  child: Text("${index + 4}"),
                 ),
               ),
               onChanged: (value) {
@@ -54,14 +59,14 @@ class _MainMenuPageState extends State<MainMenuPage> {
             ),
           ),
           ListTile(
-            title: Text("Nombre de tentatives"),
+            title: const Text("Nombre de tentatives"),
             trailing: TextField(
               textAlign: TextAlign.center,
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
               ],
-              style: TextStyle(color: Colors.black),
+              style: const TextStyle(color: Colors.black),
               decoration: const InputDecoration(
                 hintText: "6",
                 isDense: true,
@@ -78,21 +83,21 @@ class _MainMenuPageState extends State<MainMenuPage> {
             ),
           ),
           ListTile(
-            title: Text("Langage :"),
+            title: const Text("Langage :"),
             trailing: DropdownButton<String>(
               value: language,
               items: const [
                 DropdownMenuItem(
-                  child: Text("Français"),
                   value: "French",
+                  child: Text("Français"),
                 ),
                 DropdownMenuItem(
-                    child: Text("Anglais"),
                     value: "English",
+                    child: Text("Anglais"),
                 ),
                 DropdownMenuItem(
-                  child: Text("Espagnol"),
                   value: "Spanish",
+                  child: Text("Espagnol"),
                 ),
               ],
               onChanged: (value) {
@@ -102,27 +107,89 @@ class _MainMenuPageState extends State<MainMenuPage> {
               },
             ),
           ),
+          ListTile(
+            title: const Text("Timer :"),
+            trailing: Checkbox(value: hasTimer, onChanged: (onChanged) => {
+              setState(() {
+                hasTimer = !hasTimer;
+              })
+            }),
+          ),
         ],
       );
     } else if (mode == "Survie") {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Options Survie"),
-          SizedBox(height: 8.0),
+          const Text("Options Survie"),
+          const SizedBox(height: 8.0),
           ListTile(
-            title: Text("Temps par partie (en secondes) :"),
+            title: const Text("Temps par partie :"),
             trailing: DropdownButton<int>(
               items: [30, 60, 90, 120]
                   .map((time) => DropdownMenuItem(
-                child: Text("$time s"),
                 value: time,
+                child: Text("$time s"),
               ))
                   .toList(),
               onChanged: (value) {},
             ),
           ),
         ],
+      );
+    } else if (mode == "Duel") {
+      return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Options Duel"),
+            const SizedBox(height: 8.0),
+            ListTile(
+              title: const Text("Pseudo du Joueur 1 :"),
+              trailing: TextField(
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.singleLineFormatter,
+                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]*'))
+                ],
+                style: const TextStyle(color: Colors.black),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  constraints: BoxConstraints(
+                      maxWidth: 150
+                  ),
+                ),
+                onChanged: (value){
+                  setState(() {
+                    p1 = value;
+                  });
+                }
+              ),
+            ),
+            ListTile(
+              title: const Text("Pseudo du Joueur 2 :"),
+              trailing: TextField(
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.text,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.singleLineFormatter,
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]*'))
+                  ],
+                  style: const TextStyle(color: Colors.black),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    constraints: BoxConstraints(
+                        maxWidth: 150
+                    ),
+                  ),
+                  onChanged: (value){
+                    setState(() {
+                      p2 = value;
+                    });
+                  }
+              ),
+            ),
+          ],
       );
     } else {
       return Container();
@@ -140,37 +207,57 @@ class _MainMenuPageState extends State<MainMenuPage> {
               width: 40, // Taille de l'icône
               height: 40,
             ),
-            SizedBox(width: 10),
-            Text('Menu Principal - Choix du Mode'),
+            const SizedBox(width: 10),
+            const Text('Menu Principal'),
+            const Spacer(),
+            Checkbox(
+              value: darkTheme,
+              onChanged: (onChanged) => {
+                setState(() {
+                  darkTheme = !darkTheme;
+                }),
+              },
+            ),
           ],
         )
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  selectedMode = "Classique";
+                  (selectedMode != "Classique") ? selectedMode = "Classique" : selectedMode = "";
                 });
               },
-              child: Text("Classique"),
+              child: const Text("Classique"),
             ),
             if (selectedMode == "Classique") _buildOptions("Classique"),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  selectedMode = "Survie";
+                  (selectedMode != "Survie") ? selectedMode = "Survie" : selectedMode = "";
                 });
               },
-              child: Text("Survie"),
+              child: const Text("Survie"),
             ),
             if (selectedMode == "Survie") _buildOptions("Survie"),
-            Spacer(),
+            const SizedBox(height: 16.0),
             ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  (selectedMode != "Duel") ? selectedMode = "Duel" : selectedMode = "";
+                });
+              },
+              child: const Text("Duel"),
+            ),
+            if (selectedMode == "Duel") _buildOptions("Duel"),
+            const SizedBox(height: 200.0),
+            const Spacer(),
+            ElevatedButton( // Bouton Commencer la partie
               onPressed: () {
                 // Lancer la partie en fonction du mode et des options sélectionnées
                 switch(selectedMode){
@@ -181,7 +268,8 @@ class _MainMenuPageState extends State<MainMenuPage> {
                           gameMode: selectedMode,
                           language: language,
                           nbLetters: nbLetters,
-                          nbTry: nbTry
+                          nbTry: nbTry,
+                          hasTimer: hasTimer
                       )),
                     ).then((value) => {
                       setState(() {
@@ -194,9 +282,11 @@ class _MainMenuPageState extends State<MainMenuPage> {
                     break;
                   case "Survie" :
                     break;
+                  case "Duel" :
+                    break;
                 }
               },
-              child: Text("Commencer la partie"),
+              child: const Text("Commencer la partie"),
             ),
           ],
         ),

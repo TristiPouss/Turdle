@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -9,34 +10,43 @@ class TurdleGamePage extends StatefulWidget {
     required this.gameMode,
     required this.language,
     required this.nbLetters,
-    required this.nbTry
+    required this.nbTry,
+    required this.hasTimer
   });
 
   final String gameMode;
   final String language;
   final int nbLetters;
   final int nbTry;
+  final bool hasTimer;
 
   @override
   _TurdleGamePageState createState() => _TurdleGamePageState(
       gameMode: gameMode,
       language: language,
       nbLetters: nbLetters,
-      nbTry: nbTry);
+      nbTry: nbTry,
+      hasTimer: hasTimer);
 }
 
 class _TurdleGamePageState extends State<TurdleGamePage> {
-  final String gameMode;
-  final String language;
+  final String gameMode; // Mode de jeu
+  final String language; // Langue sélectionnée
   final int nbLetters;
   final int nbTry;
+  final bool hasTimer;
+
   String targetWord = "";
   List<String> guesses = [];
   List<String> _dict = [];
+  List<String> badLetters = [];
+  List<String> greenLetters = [];
+  List<String> yellowLetters = [];
 
   int currentGuess = 0;
   int score = 0;
   bool? win;
+  //Timer timer = Timer(duration, callback);
 
   late Future<void> _gameSetupFuture;
 
@@ -44,7 +54,8 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     required this.gameMode,
     required this.language,
     required this.nbLetters,
-    required this.nbTry
+    required this.nbTry,
+    required this.hasTimer
   });
 
   @override
@@ -80,7 +91,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
               ),
           ),
           // Ajoute un espace de 16 pixels entre la grille et le clavier
-          SizedBox(height: 16.0),
+          const SizedBox(height: 16.0),
           // Clavier virtuel
           if(win == null)
             TurdleKeyboard(
@@ -89,7 +100,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
                 onEnterTap: onEnterTap,
                 getLetterColor: getLetterColor
             ),
-          if(win != null) TurdleWin(win: win!, score: score, onMenu: onMenu, onReplay: onReplay,),
+          if(win != null) TurdleWin(targetWord: targetWord, win: win!, score: score, onMenu: onMenu, onReplay: onReplay,),
         ],
       ),
     );
@@ -104,7 +115,9 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
   Future<void> startNewGame() async{
     await readJson("assets/dict/${language.toLowerCase()}_words.json");
     targetWord = getWord(nbLetters).toUpperCase();
+    print(targetWord);
     guesses = List.filled(nbTry, "");
+    if(hasTimer) ;
   }
 
   void onLetterTap(String letter) {
@@ -145,10 +158,6 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     }
   }
 
-  List<String> badLetters = [];
-  List<String> greenLetters = [];
-  List<String> yellowLetters = [];
-
   Color getLetterColor(String letter){
     if (greenLetters.contains(letter)){
       return Colors.green;
@@ -174,7 +183,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     double offset = 0; // Taille approximative de chaque ligne
     _scrollController.animateTo(
         offset,
-        duration: Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeIn);
   }
 
@@ -242,12 +251,15 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     Navigator.pop(context);
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TurdleGamePage(
+      MaterialPageRoute(
+        builder: (context) => TurdleGamePage(
           gameMode: gameMode,
           language: language,
           nbLetters: nbLetters,
-          nbTry: nbTry
-      )),
+          nbTry: nbTry,
+          hasTimer: hasTimer,
+        )
+      ),
     );
   }
 
@@ -290,7 +302,8 @@ class TurdleKeyboard extends StatelessWidget {
   final VoidCallback onEnterTap;
   final Function(String) getLetterColor;
 
-  TurdleKeyboard({
+  const TurdleKeyboard({
+    super.key,
     required this.onLetterTap,
     required this.onBackspaceTap,
     required this.onEnterTap,
@@ -314,12 +327,12 @@ class TurdleKeyboard extends StatelessWidget {
           children: letters.map((letter) {
             return ElevatedButton(
               onPressed: () => onLetterTap(letter),
-              child: Text(letter),
               style: ElevatedButton.styleFrom(
-                  minimumSize: Size(36, 36),
-                  padding: EdgeInsets.all(12.0),
+                  minimumSize: const Size(36, 36),
+                  padding: const EdgeInsets.all(12.0),
                   backgroundColor: getLetterColor(letter)
               ),
+              child: Text(letter),
             );
           }).toList(),
         ),
@@ -328,12 +341,12 @@ class TurdleKeyboard extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onBackspaceTap,
-              icon: Icon(Icons.backspace),
+              icon: const Icon(Icons.backspace),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             ElevatedButton(
               onPressed: onEnterTap,
-              child: Text('Enter'),
+              child: const Text('Enter'),
             ),
           ],
         ),
@@ -419,12 +432,15 @@ class TurdleGrid extends StatelessWidget {
 }
 
 class TurdleWin extends StatelessWidget{
+  final String targetWord;
   final bool win;
   final int score;
   final VoidCallback onReplay;
   final VoidCallback onMenu;
 
-  TurdleWin({
+  const TurdleWin({
+    super.key,
+    required this.targetWord,
     required this.win,
     required this.score,
     required this.onReplay,
@@ -455,22 +471,23 @@ class TurdleWin extends StatelessWidget{
                 size: 80,
                 color: win ? Colors.green : Colors.red,
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Text(
-                win ? "Félicitations !" : "Dommage !",
+                win ? "Félicitations !" : "Dommage ! \nLe mot était : ${targetWord[0].toUpperCase()}${targetWord.substring(1).toLowerCase()}",
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: win ? Colors.green[800] : Colors.red[800],
                 ),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Text(
                 win ? "Vous avez gagné!" : "Essayez encore !",
                 style: TextStyle(fontSize: 18),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 15),
+              const SizedBox(height: 15),
               Text(
                 "Score : $score",
                 style: TextStyle(
