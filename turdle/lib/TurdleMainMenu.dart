@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'TurdleGameHistoryPage.dart';
 import 'TurdleGamePage.dart';
 
 class TurdleMainMenu extends StatelessWidget {
@@ -8,7 +9,7 @@ class TurdleMainMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       //Hide debug banner
       debugShowCheckedModeBanner: false,
       title: 'Turdle Menu',
@@ -18,6 +19,8 @@ class TurdleMainMenu extends StatelessWidget {
 }
 
 class MainMenuPage extends StatefulWidget {
+  const MainMenuPage({super.key});
+
   @override
   _MainMenuPageState createState() => _MainMenuPageState();
 }
@@ -256,6 +259,22 @@ class _MainMenuPageState extends State<MainMenuPage> {
             ),
             if (selectedMode == "Duel") _buildOptions("Duel"),
             const SizedBox(height: 200.0),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TurdleGameHistoryPage())
+                ).then((value) => {
+                  setState(() {
+                    selectedMode = "";
+                    language = "French";
+                    nbLetters = 5;
+                    nbTry = 6;
+                  })
+                });
+              },
+              child: const Text("Historique de parties"),
+            ),
             const Spacer(),
             ElevatedButton( // Bouton Commencer la partie
               onPressed: () {
@@ -280,10 +299,21 @@ class _MainMenuPageState extends State<MainMenuPage> {
                       })
                     });
                     break;
-                  case "Survie" :
-                    break;
-                  case "Duel" :
-                    break;
+                  case 'Survie':
+                  case 'Duel':
+                  showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                          title: const Text("Non Implémenté"),
+                          content: const Text("Mode Non Implémenté"),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text("Fermer"),
+                            ),
+                          ]
+                      )
+                  );
                 }
               },
               child: const Text("Commencer la partie"),

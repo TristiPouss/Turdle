@@ -4,9 +4,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:turdle/Game.dart';
+import 'DatabaseHelper.dart';
 
 class TurdleGamePage extends StatefulWidget {
-  const TurdleGamePage({
+  const TurdleGamePage({super.key,
     required this.gameMode,
     required this.language,
     required this.nbLetters,
@@ -47,6 +49,9 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
   int score = 0;
   bool? win;
   //Timer timer = Timer(duration, callback);
+  Duration duration = const Duration();
+
+  final DatabaseHelper dbHelper = DatabaseHelper();
 
   late Future<void> _gameSetupFuture;
 
@@ -69,7 +74,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
           // Grille des mots devinés
           Expanded(
               child: Scaffold(
-                body: FutureBuilder<void>(
+                body: FutureBuilder<void>( // <-- porte de l'enfer
                   future: _gameSetupFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -115,9 +120,11 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
   Future<void> startNewGame() async{
     await readJson("assets/dict/${language.toLowerCase()}_words.json");
     targetWord = getWord(nbLetters).toUpperCase();
-    print(targetWord);
+    if (kDebugMode) {
+      print(targetWord);
+    }
     guesses = List.filled(nbTry, "");
-    if(hasTimer) ;
+    if(hasTimer); // TODO Timer
   }
 
   void onLetterTap(String letter) {
@@ -228,6 +235,7 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
     guessesChecked.add(res);
     // on verifie si le jeu est terminé
     checkEnd();
+    if(win!=null) addToDatabase();
   }
 
   void checkEnd() {
@@ -292,6 +300,17 @@ class _TurdleGamePageState extends State<TurdleGamePage> {
 
   bool validGuess() {
     return _dict.contains(guesses[currentGuess].toLowerCase());
+  }
+
+  Future<void> addToDatabase() async {
+    Game thisGame = Game(
+        targetWord: targetWord,
+        guesses: guesses,
+        win: win!,
+        duration: duration
+    );
+
+    dbHelper.saveGame(thisGame);
   }
 
 }
@@ -363,7 +382,7 @@ class TurdleGrid extends StatelessWidget {
   final ScrollController scrollController;
   final bool? win;
 
-  TurdleGrid({
+  const TurdleGrid({super.key,
     required this.guesses,
     required this.guessesChecked,
     required this.targetWordLength,
@@ -451,7 +470,7 @@ class TurdleWin extends StatelessWidget{
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: win ? Colors.greenAccent[100] : Colors.redAccent[100],
           borderRadius: BorderRadius.circular(20),
@@ -484,7 +503,7 @@ class TurdleWin extends StatelessWidget{
               const SizedBox(height: 10),
               Text(
                 win ? "Vous avez gagné!" : "Essayez encore !",
-                style: TextStyle(fontSize: 18),
+                style: const TextStyle(fontSize: 18),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 15),
@@ -495,35 +514,35 @@ class TurdleWin extends StatelessWidget{
                   color: Colors.grey[700],
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ElevatedButton.icon(
                     onPressed: onReplay,
-                    icon: Icon(Icons.refresh),
-                    label: Text("Rejouer"),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Rejouer"),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.white,
                       backgroundColor: Colors.blueAccent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   ElevatedButton.icon(
                     onPressed: onMenu,
-                    icon: Icon(Icons.home),
-                    label: Text("Menu"),
+                    icon: const Icon(Icons.home),
+                    label: const Text("Menu"),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.orangeAccent,
                       backgroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                 ),
               ],
